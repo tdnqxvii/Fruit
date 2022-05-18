@@ -1,0 +1,98 @@
+# IMPORT LIBARY
+import os 
+import numpy as np
+from matplotlib import pyplot as plt
+from skimage.io import imread,imshow
+from skimage.transform import resize
+import random
+from skimage import color
+from tensorflow.keras.utils import to_categorical
+from keras.models import Sequential
+from keras.layers import Dense, Activation, Dropout,Conv2D,MaxPooling2D,Flatten
+from tensorflow.keras.optimizers import SGD,Adam,RMSprop
+from sklearn.model_selection import train_test_split
+
+# LOAD DATA FROM GOOGLE DRIVE
+data = []
+dir = '/content/drive/MyDrive/AI/FRUIT'
+folder = ['Apple','Avocado','Banana','Carambula','Guava','Lemon','Lychee','Mango','Mangostan','Watermelon']
+
+def fnc_data():
+  for file in folder:
+    path = os.path.join(dir,file)
+    classname = folder.index(file)
+    for picture in os.listdir(path):
+      image = imread(os.path.join(path,picture))
+      img = resize(image,(64,64))
+      data.append([img,classname])     
+
+fnc_data()
+
+
+X = []
+y = []
+
+# PREPROCESSING DATA
+for features, label in data:
+  X.append(features)
+  y.append(label)
+
+X = np.array(X)
+y = np.array(y) 
+
+# SPLIT DATA TO TRAIN AND TEST
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size = 0.2,shuffle = True)
+xt = x_test
+yt = y_test
+
+# CONVERT TO FLOAT 
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train/= 255.0 
+x_test/= 255.0
+
+# ONE HOT ENCODING
+y_train = to_categorical(y_train,10) 
+y_test = to_categorical(y_test,10)
+
+# CREATE MODEL CNN
+model = Sequential()
+# BLOCK 1
+model.add(Conv2D(32,(3,3), activation='relu',kernel_initializer = 'he_uniform', padding ='same' ,input_shape =(64,64,3)))
+model.add(MaxPooling2D(2,2))
+
+# BLOCK 1
+model.add(Conv2D(64,(3,3), activation='relu',kernel_initializer = 'he_uniform', padding ='same'))
+model.add(Conv2D(128,(3,3), activation='relu',kernel_initializer = 'he_uniform', padding ='same'))
+model.add(MaxPooling2D(2,2))
+
+# Add MODEL ANN
+model.add(Flatten())
+model.add(Dense(512,activation = 'relu', kernel_initializer = 'he_uniform'))
+model.add(Dense(10,activation = 'softmax'))
+
+model.compile(loss = 'categorical_crossentropy', optimizer = Adam(), metrics = ['accuracy'])
+history = model.fit(x_train, y_train, epochs = 50, batch_size = 128, validation_data = (x_test,y_test), verbose = 1)
+
+# ACCURACY OF MODEL
+score = model.evaluate(x_test,y_test,verbose = 1)
+
+# CREATE CHART 
+print('Test loss = ', score[0])
+print('Test acuaracy = ',score[1])
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model Accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train','validation'], loc = 'upper_left')
+
+#PREDICT AND TEST
+classes = ['Apple','Avocado','Banana','Carambula','Guava','Lemon','Lychee','Mango','Mangostan','Watermelon']
+y_pred = model.predict(x_test)
+plt.imshow(X[17])
+fruit = int(np.argmax(y_pred[17]))
+tet = int(np.argmax(y_test[17]))
+print('Predict:',classes[fruit])
+print('True:',classes[tet])
+
